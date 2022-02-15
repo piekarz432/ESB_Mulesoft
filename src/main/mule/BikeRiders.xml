@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd">
+	<http:request-config name="HTTP_Request_ESB_configuration" doc:name="HTTP Request configuration" doc:id="abe5493f-2a5a-4c0b-8a52-dd25f94ea3b0" >
+		<http:request-connection host="127.0.0.1" port="8080" >
+		</http:request-connection>
+	</http:request-config>
+	<http:listener-config name="HTTP_BikeRiders_Listener_config" doc:name="HTTP Listener config" doc:id="0f7d6ce3-2900-4391-832c-1969d3f54877" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<flow name="BikeRidersInitFlow" doc:id="aa19d196-a314-4bc4-b2b1-f00b2809eac6" >
+		<http:listener doc:name="GET /init" doc:id="660871de-ff6e-4c6f-97c0-53dd3130e231" path="/init" allowedMethods="GET" config-ref="HTTP_BikeRiders_Listener_config"/>
+		<scatter-gather doc:name="Scatter-Gather" doc:id="2dadb822-26ec-4ded-8652-1ff2bb61b81b" >
+			<route >
+				<flow-ref doc:name="AlicjaSubFlow" doc:id="2b862402-17c9-4bab-8c62-c371019ca03e" name="AlicjaSubFlow"/>
+				<http:request method="POST" doc:name="POST /person/{pesel}/tournament" doc:id="c68ed349-4833-4c0b-a83f-2bf11894d2cc" config-ref="HTTP_Request_ESB_configuration" path="/person/{pesel}/tournament">
+			<http:uri-params><![CDATA[#[output application/java
+---
+{
+	pesel : vars.pesel
+}]]]></http:uri-params>
+		</http:request>
+			</route>
+			<route >
+				<flow-ref doc:name="BobSubFlow" doc:id="c1f4063a-f7bf-4f25-9ff8-56ee6c7ef05c" name="BobSubFlow" />
+				<http:request method="POST" doc:name="POST /person/{pesel}/tournament" doc:id="f15c6312-465d-4df4-b0fa-14f30c268c36" config-ref="HTTP_Request_ESB_configuration" path="/person/{pesel}/tournament">
+			<http:uri-params><![CDATA[#[output application/java
+---
+{
+	pesel : vars.pesel
+}]]]></http:uri-params>
+		</http:request>
+			</route>
+		</scatter-gather>
+		<set-payload value="#[%dw 2.0
+output application/json
+---
+payload]" doc:name="Json Payload" doc:id="055887a0-c4f8-4fac-b88f-cebf0ab2ee1d" />
+	</flow>
+	<sub-flow name="AlicjaSubFlow" doc:id="2e17f0c0-81ca-4ef1-bb39-beb2e5b94b30" >
+		<set-variable value="#[85062606702]" doc:name="Set pesel" doc:id="ea236c64-bcd1-422d-a587-f6bfc1da50c1" variableName="pesel" />
+		<set-payload value='#[%dw 2.0
+output application/json
+---
+{
+	"id": 15,
+	"name": "Bike 2020", 	
+	"times": [
+		{
+			"id":1,
+			"type": 1,
+			"time": "8m 12s 150ms"
+		},
+		{
+			"id":2,
+			"type": 2,
+			"time": "7m 52s 274ms"
+		}
+	],
+	"bike":{
+		"mark": "Giant",
+		"production_year": 2006,
+		"is_rented": true,
+	}
+}]' doc:name="Set ESB Payload" doc:id="c3d7ea25-8d25-49a3-a736-63e5215c014e" />
+	</sub-flow>
+	<sub-flow name="BobSubFlow" doc:id="a4a80ca7-5227-4aae-ac53-df205cef48b7" >
+		<set-variable value="#[75062506701]" doc:name="Set pesel" doc:id="becdb692-17aa-4287-8f7a-0bc97c59b619" variableName="pesel" />
+		<set-payload value='#[%dw 2.0
+output application/java
+---
+{
+	"id": 15,
+	"name": "Bike 2020", 	
+	"times": [
+		{
+			"id":11,
+			"type": 2,
+			"time": "10m 43s 50ms"
+		},
+		{
+			"id":12,
+			"type": 3,
+			"time": "5m 11s 999ms"
+		}
+	],
+	"bike":{
+		"mark": "Giant",
+		"production_year": 2002,
+		"is_rented": false,
+	}
+}]' doc:name="Set ESB Payload" doc:id="bcc98dde-8e3a-4a94-9fa7-9fff68262ace" />
+	</sub-flow>
+	<flow name="BikeRidersPersonFlow" doc:id="e689a3e9-698a-4971-a882-e89aa1f6f4ae" >
+		<http:listener doc:name="GET /person/{pesel}" doc:id="7db84a2f-344b-4638-9a0a-007a06c9e004" config-ref="HTTP_BikeRiders_Listener_config" path="/person/{pesel}" allowedMethods="GET">
+			<http:response statusCode="#[vars.httpStatus]" />
+			<http:error-response statusCode="#[vars.httpStatus]" />
+		</http:listener>
+		<flow-ref doc:name="RandomModificatorsSubFlow" doc:id="d423dd06-7ac4-400b-822f-915ed8e7f1bd" name="RandomModificatorsSubFlow"/>
+		<choice doc:name="Choice" doc:id="eec46add-436a-4fc4-8554-c8186e2ea336" >
+			<when expression="#[!isEmpty(attributes.uriParams.pesel) and attributes.uriParams.pesel ~= 75062506701]">
+				<set-payload value='#[%dw 2.0
+output application/json
+---
+{
+	"pesel": 75062506701,
+	"name": "Bob",
+	"surname": "Nowak"
+}]' doc:name="Set Person Payload" doc:id="70743c36-66b3-4134-8be4-fda1c3a60742" />
+			</when>
+			<otherwise >
+				<set-payload value="Not Found" doc:name="Set Not Found" doc:id="b484fdfb-33cb-4f85-a2f2-bfbf4f9521bc" />
+				<set-variable value="404" doc:name="Set HttpStatus 404" doc:id="e61736d0-62ee-4248-b176-2ceeff877181" variableName="httpStatus"/>
+			</otherwise>
+		</choice>
+	</flow>
+	<flow name="BikeRidersFlow" doc:id="c84eda61-6b54-4605-bbeb-2f1f67c9b73d" >
+		<http:listener doc:name="PUT /person/{pesel}/tournament/{id}/status" doc:id="da89267e-924c-4aac-a3c5-f4f1e242c2bd" config-ref="HTTP_BikeRiders_Listener_config" path="/person/{pesel}/tournament/{id}/status" allowedMethods="PUT">
+			<http:response statusCode="#[vars.httpStatus]" />
+			<http:error-response statusCode="#[vars.httpStatus]" />
+		</http:listener>
+		<flow-ref doc:name="RandomModificatorsSubFlow" doc:id="e33149c8-a5bb-47d9-8929-9db6d97d021d" name="RandomModificatorsSubFlow"/>
+		<logger level="INFO" doc:name="Log Payload" doc:id="6845fe0e-ede1-43ee-8f6d-1322156f7d53" message="#[payload]"/>
+		<logger level="INFO" doc:name="Log Uri" doc:id="91b32215-eb2c-422b-9e6d-ff0a58184de3" message="#[attributes.uriParams]"/>
+		<choice doc:name="Valid uriParams?" doc:id="7bf805c3-4e78-479d-a649-30f5fb63ff37" >
+			<when expression="#[(attributes.uriParams.pesel ~= 85062606702 or attributes.uriParams.pesel ~= 75062506701) and attributes.uriParams.id ~= 15]">
+				<logger level="DEBUG" doc:name="Log Valid" doc:id="d7be0a56-bc5f-4912-bbfc-23c161fc0593" message="Valid Uri"/>
+			</when>
+			<otherwise >
+				<set-variable value="#[404]" doc:name="Set Http Status 404" doc:id="527d6153-48ac-44e0-993a-4c24f1b507a0" variableName="httpStatus"/>
+				<raise-error doc:name="Raise Not Found" doc:id="436a228d-21cf-4791-9bf5-d3cb1898fc42" type="APP:NOT_FOUND" description="No Entry For Given Uri Params"/>
+			</otherwise>
+		</choice>
+		<choice doc:name="Expected Behavoiur" doc:id="01140034-75e2-45cc-9770-006c082ea779" >
+			<when expression="#[payload.timeId ~= 11]">
+				<set-payload value='#[%dw 2.0
+import * from dw::Runtime
+output application/json
+---
+{
+	"response": "Ok"
+} wait 10000]' doc:name="Set Response After 10s" doc:id="0ca6fa36-8394-4aec-8d5d-9266a2a1f19a" />
+				<logger level="INFO" doc:name="Log Check Mail" doc:id="c93c1c85-7c56-4f66-9708-2173b2cfe023" message="After 10s variant - Check Mail"/>
+			</when>
+			<when expression="#[payload.timeId ~= 12]">
+				<logger level="INFO" doc:name="Log Check Mail" doc:id="c40806ba-a970-4cd5-b51b-ae68bb314791" message="Raise Error Variant - Check Mail" />
+				<set-variable value="#[500]" doc:name="Set Http Status 500" doc:id="6aa48a67-b74a-429b-80b0-a7e83b44e771" variableName="httpStatus" />
+				<raise-error doc:name="Raise Internal Server Error" doc:id="951e9ad2-daf7-4283-bba4-228c615f783a" type="APP:INTERNAL_SERVER_ERROR" description="Internal Server Error"/>
+			</when>
+			<otherwise >
+				<set-payload value='#[%dw 2.0
+import * from dw::Runtime
+output application/json
+---
+{
+	"response": "Ok"
+}]' doc:name="Set Response" doc:id="e98ba79f-6d5e-4a82-8916-8d38e21aa095" />
+				<logger level="INFO" doc:name="Log Check Mail" doc:id="1b290614-9f85-40de-aa13-d438e58c4410" message="Normal Data Variant - Ok" />
+			</otherwise>
+		</choice>
+	</flow>
+</mule>

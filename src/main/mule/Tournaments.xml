@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:os="http://www.mulesoft.org/schema/mule/os" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd">
+	<http:listener-config name="HTTP_Tournaments_Listener_config" doc:name="HTTP Listener config" doc:id="2dc29408-62be-451b-b721-cdfeb29edfa2" >
+		<http:listener-connection host="0.0.0.0" port="8083" />
+	</http:listener-config>
+	<os:config name="ObjectStore_Config" doc:name="ObjectStore Config" doc:id="850a02be-7fab-4c36-aff2-3fdeea9df50b" />
+	<os:object-store name="Tournaments_Object_store" doc:name="Object store" doc:id="4af81470-60f4-4282-9000-512af9605c09" entryTtl="60" expirationInterval="10" expirationIntervalUnit="SECONDS" config-ref="ObjectStore_Config" />
+	<flow name="TournamentsPostFlow" doc:id="c646c045-328b-4f80-9196-f53c7a6fbce6" >
+		<http:listener doc:name="POST /tournament/bikeriders/" doc:id="bb9857a6-c612-4020-a687-89c16575d079" config-ref="HTTP_Tournaments_Listener_config" path="/tournament/bikeriders/" allowedMethods="POST">
+			<http:response statusCode="#[vars.httpStatus]" />
+			<http:error-response statusCode="#[vars.httpStatus]" />
+		</http:listener>
+		<flow-ref doc:name="RandomModificatorsSubFlow" doc:id="f7769109-7928-410e-a4ca-8405489a336a" name="RandomModificatorsSubFlow" />
+		<flow-ref doc:name="TournamentsCheckToken" doc:id="67833330-982d-4875-8bc3-5452571b16ce" name="TournamentsCheckToken"/>
+		<choice doc:name="Choice" doc:id="44afe202-1dc8-4d21-875c-dddda65cabb2" >
+			<when expression="#[payload.tournament.timeId == 12]">
+				<set-payload value='#[%dw 2.0
+output application/json
+---
+{
+	"Response": "Tournament Not Added - SQL EXCEPTION",
+	"Success": false	
+}]' doc:name="Set NotAdded Payload" doc:id="ffd3bd2f-306e-4a77-8d85-5e70746d7b44" />
+				<set-variable value="#[500]" doc:name="Set HttpStatus 500" doc:id="879b6da0-2a12-4005-81f7-ee5585f233c0" variableName="httpStatus"/>
+			</when>
+			<otherwise >
+				<set-payload value='#[%dw 2.0
+output application/json
+---
+{
+	"Response": "Tournament Added",
+	"Success": true	
+}]' doc:name="Set Added Payload" doc:id="e287e3a3-e1f0-4933-8df5-108acc9b80c7" />
+			</otherwise>
+		</choice>
+	</flow>
+	<sub-flow name="TournamentsCheckToken" doc:id="46f556ea-b6c7-41e9-ab39-cb319d529c90" >
+		<os:retrieve doc:name="Retrieve Token" doc:id="b34fecd8-69a4-49ff-ba04-2942f9a29392" key="token" objectStore="Tournaments_Object_store" target="token">
+			<os:default-value ><![CDATA[noToken]]></os:default-value>
+		</os:retrieve>
+		<choice doc:name="Token is Invalid?" doc:id="9f76b870-aefd-40b2-af5d-c1a0fab239c5" >
+			<when expression='#[isEmpty(attributes.headers.authorization) or attributes.headers.authorization != ("Bearer " ++ vars.token)]'>
+				<raise-error doc:name="Raise Unauthorized" doc:id="5913d3f5-5c56-4670-b1e3-9e849bb5d22e" type="APP:UNAUTHORIZED" description="Unauthorized" />
+				<set-variable value="401" doc:name="Set httpStatus 401" doc:id="76b82bf4-56da-4dbf-ab17-2901e1938691" variableName="httpStatus" />
+			</when>
+			<otherwise >
+				<logger level="DEBUG" doc:name="Log OK" doc:id="f535204c-74e2-416a-9a94-c885ea93571d" message="Token OK" />
+			</otherwise>
+		</choice>
+	</sub-flow>
+	<flow name="TournamentsAuthFlow" doc:id="da7f5e2e-020b-4804-83e1-bc7d78437eb0" >
+		<http:listener doc:name="POST /auth" doc:id="a8c78929-8d52-41dd-b41b-a544b25006a0" config-ref="HTTP_Tournaments_Listener_config" path="/auth">
+			<http:response statusCode="#[vars.httpStatus]" />
+			<http:error-response statusCode="#[vars.httpStatus]" />
+		</http:listener>
+		<flow-ref doc:name="RandomModificatorsSubFlow" doc:id="ea72d5e3-dd28-4d28-9927-127e06c83a5a" name="RandomModificatorsSubFlow" />
+		<choice doc:name="User Password Invalid?" doc:id="e4d2129f-1608-4bc3-940e-88631bbff3a7" >
+			<when expression='#[isEmpty(attributes.headers.authorization) or attributes.headers.authorization != "Basic dXNlcm5hbWU6cGFzc3dvcmQ="]' >
+				<set-variable value="401" doc:name="Set httpStatus 401" doc:id="031e3072-a666-4ab7-9aad-a257f7d216cc" variableName="httpStatus" />
+				<raise-error doc:name="Raise Unauthorized" doc:id="56a42c0c-08f9-4acc-945a-349481f4be9d" type="APP:UNAUTHORIZED" description="Unauthorized" />
+			</when>
+			<otherwise>
+				<set-payload value='#[%dw 2.0
+import * from dw::Runtime
+output application/json
+---
+{
+	"token": uuid()
+} wait 7000]' doc:name="Set Token Payload" doc:id="ac24bbb9-f607-4a39-96f4-eda55e578cf0" />
+				<os:store doc:name="Store Token" doc:id="4f8ac2c2-ad83-4f51-9015-cddae11c46b6" key="token" objectStore="Tournaments_Object_store">
+					<os:value ><![CDATA[#[payload.token]]]></os:value>
+				</os:store>
+			</otherwise>
+		</choice>
+	</flow>
+</mule>

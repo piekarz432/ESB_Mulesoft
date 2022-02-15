@@ -1,0 +1,57 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+        "id": {
+            "type": "integer"
+        },
+        "name": {
+            "type": "string"
+        },
+        "times": {
+	        "type": "array",
+            "items": {
+                "type": "object",
+	            "additionalProperties": false,
+	            "properties": {
+	                "id": {
+	                    "type": "integer"
+	                },
+	                "type": {
+	                    "type": "integer"
+	                },
+	                "time": {
+	                    "type": "string"
+	                }
+				}
+        	}
+        },
+        "bike": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "mark": {
+                    "type": "string"
+                },
+                "production_year": {
+                    "type": "integer"
+                },
+                "is_rented": {
+                    "type": "boolean"
+                }
+            },
+            "required": [
+                "mark",
+                "production_year",
+                "is_rented"
+            ]
+        }
+	},
+    "required": [
+        "id",
+        "name",
+        "times",
+        "bike"
+    ]
+}

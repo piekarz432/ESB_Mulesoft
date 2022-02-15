@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:munit="http://www.mulesoft.org/schema/mule/munit" xmlns:munit-tools="http://www.mulesoft.org/schema/mule/munit-tools"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xsi:schemaLocation="
+		http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+		http://www.mulesoft.org/schema/mule/munit http://www.mulesoft.org/schema/mule/munit/current/mule-munit.xsd
+		http://www.mulesoft.org/schema/mule/munit-tools  http://www.mulesoft.org/schema/mule/munit-tools/current/mule-munit-tools.xsd">
+	<munit:config name="esb-test-suite.xml" />
+	<munit:test name="ESBTestShouldThrowBadRequestWhenInvalidUriParams" doc:id="43571a98-f0a5-42bc-9639-d611bebf066f" description="Test">
+		<munit:behavior >
+			<munit:set-event doc:name="Set Input Data With Invalid Uri Params" doc:id="65c46c06-dec3-4b17-9a8d-b1f74054eb5a">
+				<munit:payload value='{
+	"id":15,
+	"name":"Bike 2020",
+	"times":[
+		{
+			"id":1,
+			"type": 1,
+			"time":"8m 12s 150ms"
+		}
+	],
+	"bike":{
+		"mark":"Giant",
+		"production_year":2006,
+		"is_rented":true
+	}
+}' mediaType="application/json" />
+			</munit:set-event>
+		</munit:behavior>
+		<munit:execution >
+			<flow-ref doc:name="Flow-ref to ESB" doc:id="2a750a68-d0fa-4e72-b19f-4daac5cb6363" name="ESB"/>
+		</munit:execution>
+		<munit:validation >
+			<munit-tools:assert-equals doc:name="Assert httpStatus" doc:id="87f03b4a-0575-4a99-84c1-3b1ffe4eea48" actual="#[vars.httpStatus]" expected="400"/>
+			<munit-tools:assert-equals doc:name="Assert Response" doc:id="04163afb-95f2-497c-a1a3-1876af1ec314" actual="#[payload]" expected="Invalid Uri Params"/>
+		</munit:validation>
+		
+		
+	</munit:test>
+	<munit:test name="ESBTestShoudThrowSchemaNotHonouredWhenInputDataIsInvalid" doc:id="e1d63336-e6f5-48c0-a71d-09d1241d81c3" description="Test" expectedErrorType="JSON:SCHEMA_NOT_HONOURED">
+		<munit:behavior >
+			<munit:set-event doc:name="Set Invalid Input Data" doc:id="597be07f-b218-4dd8-80b2-515ce601396e">
+				<munit:payload value='{
+	"name":"Bike 2020",
+	"times":[
+		{
+			"id":1,
+			"type": 1,
+			"time":"8m 12s 150ms"
+		}
+	],
+	"bike":{
+		"mark":"Giant",
+		"production_year":2006,
+		"is_rented":true
+	}
+}' mediaType="application/json" />
+				<munit:attributes value='{"uriParams": {"pesel": 85062606702}}' mediaType="application/json" />
+			</munit:set-event>
+		</munit:behavior>
+		<munit:execution >
+			<flow-ref doc:name="Flow-ref to ESB" doc:id="7fbc2c79-4360-44f8-bcbf-ee53a87ea1ae" name="ESB"/>
+		</munit:execution>
+	</munit:test>
+	<munit:test name="ValidateUriParamsTestThrowBadRequestWhenUriParamsIsEmpty" doc:id="db72d1ff-6a68-4227-a947-354de5d1c93e" description="Test" expectedErrorType="APP:BAD_REQUEST">
+		<munit:behavior >
+			<munit:set-event doc:name="Set Empty Uri Params" doc:id="1289b6fd-ceab-47bc-a46a-2653e5a1b0cd" >
+				<munit:attributes mediaType="application/json" />
+			</munit:set-event>
+		</munit:behavior>
+		<munit:execution >
+			<flow-ref doc:name="Flow-ref to ValidateUriParams" doc:id="c1b64a29-cc32-49e4-a40c-7e8eaf83a299" name="ValidateUriParams"/>
+		</munit:execution>
+	</munit:test>
+	<munit:test name="ESBTestShouldReturnAcceptedWhenValidData" doc:id="b15cc704-72ec-47ce-a7bf-2c5c16364377" description="Test">
+		<munit:behavior >
+			<munit:set-event doc:name="Set Valid Data" doc:id="d5dde448-a4d8-451d-9fa4-a4b40522bd2a" >
+				<munit:payload value='{
+	"id":15,
+	"name":"Bike 2020",
+	"times":[
+		{
+			"id":1,
+			"type": 1,
+			"time":"8m 12s 150ms"
+		}
+	],
+	"bike":{
+		"mark":"Giant",
+		"production_year":2006,
+		"is_rented":true
+	}
+}' mediaType="application/json" />
+				<munit:attributes value='{"uriParams": {"pesel": 85062606702}}' mediaType="application/json" />
+			</munit:set-event>
+		</munit:behavior>
+		<munit:execution >
+			<flow-ref doc:name="Flow-ref to ESB" doc:id="933556ba-90ce-4608-9b75-c9a0374ee888" name="ESB"/>
+		</munit:execution>
+		<munit:validation>
+			<munit-tools:assert-equals doc:name="Assert Response" doc:id="3032f87a-30c1-4944-8e50-da016189d9dd" actual="#[vars.response]" expected="Accepted"/>
+		</munit:validation>
+	</munit:test>
+
+
+</mule>

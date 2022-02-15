@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:java="http://www.mulesoft.org/schema/mule/java" xmlns:os="http://www.mulesoft.org/schema/mule/os"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd
+http://www.mulesoft.org/schema/mule/java http://www.mulesoft.org/schema/mule/java/current/mule-java.xsd">
+	<sub-flow name="TournamentAuth" doc:id="cc54d4a0-c0bb-4f0e-abbb-fb725f8bfd5a" >
+		<logger level="INFO" doc:name="Log action" doc:id="27aca6a3-67e2-47d6-acaa-75fed56a9f0b" message='#[%dw 2.0
+output application/json
+---
+{
+	"Method" : "Generate Token",
+	"Action" : "Get Token"
+}]' />
+		<until-successful maxRetries="5" doc:name="Until Successful" doc:id="f0591fee-90fd-4cdb-be3a-676d2825cfb8" millisBetweenRetries="1000">
+				<http:request method="POST" doc:name="Request Tournament.com Get Bearer Token" doc:id="f1985665-7a63-4ef0-a317-83c5bf4bb658" path="/auth" config-ref="HTTP_Tournament_Request_configuration">
+					<http:headers><![CDATA[#[output application/java
+---
+{
+	Authorization : "Basic dXNlcm5hbWU6cGFzc3dvcmQ="
+}]]]></http:headers>
+				</http:request>
+		</until-successful>
+		<os:store doc:name="Store Token" doc:id="7bf22a7d-81a6-4dbf-bced-4e1c9aa6eb7d" key="token">
+					<os:value><![CDATA[#[payload.token]]]></os:value>
+				</os:store>
+		<set-variable value="#[payload.token]" doc:name="Set Token" doc:id="35e6814d-3043-44cb-9081-a04a4da9c547" variableName="token" />
+		<flow-ref doc:name="Tournament Send Resault" doc:id="81c6ae60-0e14-4df1-b2ce-728256d4d064" name="TournamentSendResault" />
+	</sub-flow>
+	<sub-flow name="TournamentSendResault" doc:id="1eaf6fef-b1e3-465b-85d2-ee63f3bfe741" >
+	<logger level="INFO" doc:name="Log action" doc:id="b08156aa-12c7-4e17-ad66-e9264a36fca6" message='#[%dw 2.0
+output application/json
+---
+{
+	"Method" : "POST",
+	"Action" : "Send Tournament Resault"
+}]'/>
+		<foreach doc:name="For Each" doc:id="80fa8538-9094-4781-8e26-45d784b1ef4b">
+			<logger level="INFO" doc:name="Logger" doc:id="0b4d7e87-b04a-436b-b77b-70054bfe6161" message='#[vars.body.times]'/>
+			<set-variable value="#[vars.body.times]" doc:name="Set Time Variable" doc:id="0ad9ded3-3975-404a-80f6-53a170d31286" variableName="times"/>
+			<set-variable doc:name="Set Input Body Variable" doc:id="cbcdb825-f692-45ee-b263-34721d554d1e" variableName="postBody" value='#[%dw 2.0
+import java!utils::Utlis
+output application/json
+
+
+var tournamentType = {"1" : "trial", "2" : "DSQ", "3" : "normal"}
+var bikeSpecificationState = {"true" : 1, "false" : 0}
+---
+{
+	"personId": vars.body.id,
+	"tournament": vars.body.times map(item) -&gt;{
+		"timeId" : item.id,
+		"name" : vars.body.name,
+		"type": tournamentType[item."type" as String] ,
+		"time" : Utlis::convertTime(item.time),
+		
+	},
+	"bike_specification":{
+		"mark": vars.body.bike.mark,
+		"year": vars.body.bike.production_year,
+		"state": bikeSpecificationState[vars.body.bike.is_rented as String]
+	}
+}]' />
+			<until-successful maxRetries="5" doc:name="Until Successful" doc:id="c8b835f2-ad03-4cde-9972-e3ce2df31408" millisBetweenRetries="1000">
+				<http:request method="POST" doc:name="Request Tournament.com" doc:id="7369e209-ee8f-4d96-8ec2-0aa2f53a9ee7" path="/tournament/bikeriders/" config-ref="HTTP_Tournament_Request_configuration">
+					<http:body><![CDATA[#[vars.postBody]]]></http:body>
+					<http:headers><![CDATA[#[output application/java
+---
+{
+	Authorization : "Bearer " ++ vars.token
+}]]]></http:headers>
+				</http:request>
+				<set-variable value="#[payload]" doc:name="Set Response Variable" doc:id="f66fa493-3ee0-445e-9472-982f7726d552" variableName="response" />
+				<flow-ref doc:name="Log Data" doc:id="2ecba89d-a5e3-4c8a-8ee8-5c0f38ff4cb8" name="LogData" />
+		</until-successful>
+			<set-payload value="#[vars.response]" doc:name="Set Resposne" doc:id="872ba097-cced-4331-90ce-8182f907d660" />
+			<flow-ref doc:name="Process Status" doc:id="694b79be-24c4-4167-94ac-ed12ea259bf9" name="PorcessStatus" />
+		</foreach>
+	</sub-flow>
+</mule>

@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:munit="http://www.mulesoft.org/schema/mule/munit" xmlns:munit-tools="http://www.mulesoft.org/schema/mule/munit-tools"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xsi:schemaLocation="
+		http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+		http://www.mulesoft.org/schema/mule/munit http://www.mulesoft.org/schema/mule/munit/current/mule-munit.xsd
+		http://www.mulesoft.org/schema/mule/munit-tools  http://www.mulesoft.org/schema/mule/munit-tools/current/mule-munit-tools.xsd">
+	<munit:config name="BikeRiders.com-test-suite.xml" />
+	<munit:test name="BikeRidersGetPersonDataTestShouldThrowSchemaNotHonoured" doc:id="3454d9fe-1c6d-4898-b8b8-e0ccc222b584" description="Test" expectedErrorType="JSON:SCHEMA_NOT_HONOURED">
+		<munit:behavior >
+			<munit-tools:mock-when doc:name="Mock Invalid Data" doc:id="66cab868-f839-43af-9b74-63324018f4ec" processor="http:request">
+				<munit-tools:with-attributes >
+					<munit-tools:with-attribute whereValue="fbd751e9-2573-4fb2-809b-160a68a9fb51" attributeName="doc:id" />
+					<munit-tools:with-attribute whereValue="HTTP_BikeRiders_Request_configuration" attributeName="config-ref" />
+					<munit-tools:with-attribute whereValue="/person/{pesel}" attributeName="path" />
+				</munit-tools:with-attributes>
+				<munit-tools:then-return >
+					<munit-tools:payload value='#[%dw 2.0
+output application/json
+---
+{
+	"pesel": 85062606702,
+	"surname": "Kowalska"
+}
+]' mediaType="application/json" />
+				</munit-tools:then-return>
+			</munit-tools:mock-when>
+		</munit:behavior>
+		<munit:execution >
+			<flow-ref doc:name="Flow-ref to BikeRidersGetPersonData" doc:id="dcedd990-3bdf-4a47-8502-b451428a2038" name="BikeRidersGetPersonData"/>
+		</munit:execution>
+	</munit:test>
+	<munit:test name="BikeRidersGetPersonDataTestShouldPassValidation" doc:id="b68dc1b1-d943-4f8f-827c-80b2c65ab952" description="Test">
+		<munit:behavior >
+			<munit-tools:mock-when doc:name="Mock Valid Data" doc:id="539d4d06-f831-4ce1-a759-b00fbaddaa5f" processor="http:request">
+				<munit-tools:with-attributes >
+					<munit-tools:with-attribute whereValue="fbd751e9-2573-4fb2-809b-160a68a9fb51" attributeName="doc:id" />
+					<munit-tools:with-attribute whereValue="HTTP_BikeRiders_Request_configuration" attributeName="config-ref" />
+					<munit-tools:with-attribute whereValue="/person/{pesel}" attributeName="path" />
+				</munit-tools:with-attributes>
+				<munit-tools:then-return >
+					<munit-tools:payload value='#[%dw 2.0
+output application/json
+---
+{
+	"pesel": 85062606702,
+	"name": "Alicja",
+	"surname": "Kowalska"
+}
+]' mediaType="application/json" />
+				</munit-tools:then-return>
+			</munit-tools:mock-when>
+		</munit:behavior>
+		<munit:execution >
+			<flow-ref doc:name="Flow-ref to BikeRidersGetPersonData" doc:id="6a241f2a-367a-44b9-bcb6-4ef70c67775c" name="BikeRidersGetPersonData"/>
+		</munit:execution>
+	</munit:test>
+
+
+</mule>

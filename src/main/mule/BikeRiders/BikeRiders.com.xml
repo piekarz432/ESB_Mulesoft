@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:email="http://www.mulesoft.org/schema/mule/email"
+	xmlns:json="http://www.mulesoft.org/schema/mule/json"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/email http://www.mulesoft.org/schema/mule/email/current/mule-email.xsd 
+http://www.mulesoft.org/schema/mule/json http://www.mulesoft.org/schema/mule/json/current/mule-json.xsd 
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd">
+
+	<sub-flow name="BikeRidersGetPersonData">
+		<logger level="INFO" doc:name="Log action"
+			message='#[%dw 2.0
+output application/json
+---
+{
+	"Method" : "GET",
+	"Action" : "Get Person Data For Pesel"
+}]' />
+		<until-successful maxRetries="5"
+			doc:name="Until Successful" millisBetweenRetries="1000">
+			<http:request method="GET"
+				doc:name="Request BikeRiders.com"
+				config-ref="HTTP_BikeRiders_Request_configuration"
+				path="/person/{pesel}">
+				<http:uri-params><![CDATA[#[output application/java
+---
+{
+	pesel : vars.pesel
+}]]]></http:uri-params>
+			</http:request>
+			<set-variable value="#[payload]"
+				doc:name="Set Response Variable" variableName="response" />
+			<try doc:name="Try">
+				<json:validate-schema
+					doc:name="Validate Person Data For Pesel"
+					schema="schema/GetPersonDataForPeselSchema.json" />
+				<error-handler>
+					<on-error-propagate enableNotifications="true"
+						logException="true" doc:name="On Error Propagate"
+						type="JSON:SCHEMA_NOT_HONOURED">
+
+						<email:send doc:name="Send Email BikeRiders.com"
+							config-ref="Email_SMTP" fromAddress='#["esb.message@gmail.com"]'
+							subject="Invalid Data Response">
+							<email:to-addresses>
+								<email:to-address
+									value="serwis.bike.riders@gmail.com" />
+							</email:to-addresses>
+							<email:body contentType="text/plain">
+								<email:content><![CDATA[#["Invalid response data
+I was expecting:
+{
+	pesel: Integer,
+	name: String,
+	surname: String
+}
+
+"]]]></email:content>
+							</email:body>
+						</email:send>
+						<email:send doc:name="Send Email People.com"
+							config-ref="Email_SMTP" fromAddress='#["esb.message@gmail.com"]'
+							subject="Invalid Data Response">
+							<email:to-addresses>
+								<email:to-address
+									value="serwis.people@gmail.com" />
+							</email:to-addresses>
+						</email:send>
+					</on-error-propagate>
+				</error-handler>
+			</try>
+			<set-payload value="#[vars.response]"
+				doc:name="Set Response" />
+		</until-successful>
+		<flow-ref doc:name="People Create Person" name="PeopleCreatePerson" />
+	
+</sub-flow>
+</mule>

@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:email="http://www.mulesoft.org/schema/mule/email" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/email http://www.mulesoft.org/schema/mule/email/current/mule-email.xsd">
+	<sub-flow name="PorcessStatus" doc:id="5e4ae449-57b9-4ad0-a5e4-3b7cb57a3ae6" >
+	<logger level="INFO" doc:name="Log action" doc:id="ac5d4dc5-3d1a-473f-b0d1-b0efaf302b17" message='#[%dw 2.0
+output application/json
+---
+{
+	"Method" : "",
+	"Action" : "Process Status"
+}]'/>
+		<choice doc:name="Success?" doc:id="92cb56ef-6cc9-4a62-b2c7-dad6b588def6" >
+			<when expression="#[payload.Success]">
+				<set-payload value='#[%dw 2.0
+output application/json
+---
+{
+	"timeId": vars.times.id,
+	"Status": "Added",
+	"Success": true
+}]' doc:name="Set Success" doc:id="ab3d3540-fec5-4b97-bd91-d6177021a3e7" />
+			
+</when>
+			<otherwise >
+				<set-payload value='#[%dw 2.0
+output application/json
+---
+{
+	"Status": payload.Response,
+	"Success": false
+}]' doc:name="Set Failure" doc:id="1db92e3d-fc89-493d-aa11-c2ac7fecb066" />
+			</otherwise>
+		</choice>
+		<until-successful maxRetries="5" doc:name="Until Successful" doc:id="0040aa35-aca3-460d-bad1-44baf73f70c8" millisBetweenRetries="1000">
+			<try doc:name="Try" doc:id="52f5e322-377e-4387-a07c-42b426365112">
+				<http:request method="PUT" doc:name="Request BikeRiders.com" doc:id="3bbba4ed-a878-4f87-8970-8ecf03f30e70" config-ref="HTTP_BikeRiders_Request_configuration" path="/person/{pesel}/tournament/{id}/status">
+					<http:uri-params><![CDATA[#[output application/java
+---
+{
+	id : vars.body.id,
+	pesel : vars.pesel
+}]]]></http:uri-params>
+				</http:request>
+				<error-handler>
+					<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="a5c15d18-addc-46f3-a638-b506da036449">
+						<email:send doc:name="Send Email" doc:id="3bb7ba68-2d2c-49df-996c-96d7e8c3b83f" config-ref="Email_SMTP" fromAddress='#["esb.message@gmail.com"]'>
+							<email:to-addresses>
+								<email:to-address value="status.report@bikeriders.com" />
+							</email:to-addresses>
+						</email:send>
+					</on-error-continue>
+				</error-handler>
+			</try>
+		</until-successful>
+		<flow-ref doc:name="Log Data" doc:id="72e7afd4-13b8-41c2-a43e-1f7039ee3a85" name="LogData" />
+	
+</sub-flow>
+</mule>

@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd">
+	<sub-flow name="RandomModificatorsSubFlow" doc:id="85824ae3-283e-4d85-915e-20f3ea9e1fc1" >
+		<flow-ref doc:name="Random503SubFlow" doc:id="31b7c273-c7c6-4991-b5cc-9e426229cc4c" name="Random503SubFlow"/>
+		<flow-ref doc:name="RandomTimeOutSubFlow" doc:id="d48aeb0e-f1cf-4c60-9967-1aa30e2b3975" name="RandomTimeOutSubFlow" />
+	</sub-flow>
+	<sub-flow name="Random503SubFlow" doc:id="d3540202-a80b-4c7f-aef8-4073097e97d0" >
+		<choice doc:name="5% Chance for 503" doc:id="532309ec-4502-4b4f-9bd9-9a5926ec3e68" >
+			<when expression="#[random() &gt; 0.95]">
+				<set-variable value="#[503]" doc:name="Set 503 HttpStatus" doc:id="78a869f2-1529-4f37-a20c-2e61adc9c215" variableName="httpStatus"/>
+				<raise-error doc:name="Raise Service Unavailable" doc:id="c97786f4-0498-49cf-bab8-2ebb4a1c4f61" type="APP:SERVICE_UNAVAILABLE" description="Service Unavailable"/>
+			</when>
+			<otherwise >
+				<logger level="DEBUG" doc:name="Log No 503" doc:id="48185536-d74d-452a-a13f-68615225a599" message="No 503"/>
+			</otherwise>
+		</choice>
+	</sub-flow>
+	<sub-flow name="RandomTimeOutSubFlow" doc:id="674a115d-329b-478d-a03b-b1dea21fe5e0" >
+		<choice doc:name="5% Chance for 10s Wait" doc:id="33e75a77-f6f8-4d88-95ea-120c7b447b6c" >
+			<when expression="#[random() &gt; 0.95]" >
+				<set-variable value='#[%dw 2.0
+import * from dw::Runtime
+output application/java
+---
+"waited" wait 10000]' doc:name="Wait" doc:id="4afe951d-31c4-4112-9eea-f68c3e25cef8" variableName="wait" />
+			</when>
+			<otherwise >
+				<logger level="DEBUG" doc:name="Log No Wait" doc:id="96b0f2d5-75b0-4989-919c-6f4eeb6bf39a" message="No Wait" />
+			</otherwise>
+		</choice>
+	</sub-flow>
+</mule>

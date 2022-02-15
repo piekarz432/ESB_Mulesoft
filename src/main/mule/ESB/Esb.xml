@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:email="http://www.mulesoft.org/schema/mule/email"
+	xmlns:json="http://www.mulesoft.org/schema/mule/json"
+	xmlns:xml-module="http://www.mulesoft.org/schema/mule/xml-module"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/xml-module http://www.mulesoft.org/schema/mule/xml-module/current/mule-xml-module.xsd
+http://www.mulesoft.org/schema/mule/json http://www.mulesoft.org/schema/mule/json/current/mule-json.xsd
+http://www.mulesoft.org/schema/mule/email http://www.mulesoft.org/schema/mule/email/current/mule-email.xsd">
+	<flow name="ESB">
+		<http:listener
+			doc:name="POST /person/{pesel}/tournament"
+			config-ref="HTTP_Listener_config" path="/person/{pesel}/tournament"
+			allowedMethods="POST">
+			<http:response statusCode="#[vars.httpStatus]">
+			</http:response>
+		</http:listener>
+		<logger level="INFO" doc:name="Log action"
+			message='#[%dw 2.0
+output application/json
+---
+{
+	"Method" : "POST",
+	"Action" : "Tournament Resault For Person"
+}]' />
+		<flow-ref doc:name="Validate Uri Params"
+			name="ValidateUriParams" />
+		<json:validate-schema
+			doc:name="Validate Tournament Resault"
+			schema="schema/TournamentResaultSchema.json" />
+		<set-variable value="Accepted"
+			doc:name="Set Variable Response" variableName="response" />
+		<set-variable value="#[payload]"
+			doc:name="Set Variable Body" variableName="body" />
+		<set-variable value="#[attributes.uriParams.pesel]"
+			doc:name="Set Pesel Variable" variableName="pesel" />
+		<flow-ref doc:name="Log Input Data" name="LogInputData" />
+		<flow-ref doc:name="Log Data" name="LogData" />
+		<async doc:name="Async">
+			<try doc:name="Try">
+				<flow-ref doc:name="People Get Person By Pesel"
+					name="PeopleGetPerson" />
+				<flow-ref doc:name="Tournament Send Resault"
+					name="TournamentAuth" />
+				<error-handler>
+					<on-error-continue enableNotifications="true"
+						logException="true" doc:name="On Error Continue">
+						<set-payload
+							value='#[%dw 2.0
+output application/json
+---
+{
+	"Response": error.description,
+	"Success": false
+}]'
+							doc:name="Set Payload" />
+						<flow-ref doc:name="Process Status" name="PorcessStatus" />
+					</on-error-continue>
+				</error-handler>
+			</try>
+		</async>
+		<set-variable value="202" doc:name="Set Variable" doc:id="0f338327-797c-4dfb-ad53-e3ab52e8071f" variableName="httpStatus"/>
+		<set-payload value="#[vars.response]" doc:name="Set Accepted" />
+		<error-handler>
+			<on-error-continue enableNotifications="true"
+				logException="true" doc:name="On Error Continue"
+				type="APP:BAD_REQUEST">
+				<set-variable value="400" doc:name="Set Http Status"
+					variableName="httpStatus" />
+				<set-payload value="Invalid Uri Params"
+					doc:name="Set Invalid Uri Params" />
+			</on-error-continue>
+			<on-error-propagate enableNotifications="true"
+				logException="true" doc:name="On Error Propagate"
+				type="JSON:SCHEMA_NOT_HONOURED">
+				<set-variable value="" doc:name="Set Http Status"
+					variableName="400" />
+				<set-payload value="Invalid Data" doc:name="Set Payload" />
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+	<sub-flow name="ValidateUriParams">
+		<choice doc:name="UriParams?">
+			<when expression="#[isEmpty(attributes.uriParams.pesel)]">
+				<raise-error doc:name="Raise Bad Request"
+					type="APP:BAD_REQUEST" description="Invalid Uri Params" />
+			</when>
+		</choice>
+	</sub-flow>
+</mule>

@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd">
+	<http:listener-config name="HTTP_People_Listener_config" doc:name="HTTP Listener config" doc:id="3cfdb6e6-4f5c-4ac8-86eb-e3adef85f219" >
+		<http:listener-connection host="0.0.0.0" port="8082" />
+	</http:listener-config>
+	<flow name="PeopleGetFlow" doc:id="23cb317f-bd27-480b-a4fb-fd9b03bcada2" >
+		<http:listener doc:name="GET /person?pesel={pesel}" doc:id="5bebfd7a-717f-45e8-a14a-9be192f13389" config-ref="HTTP_People_Listener_config" path="/person" allowedMethods="GET">
+			<http:response statusCode="#[vars.httpStatus]" />
+			<http:error-response statusCode="#[vars.httpStatus]" >
+			</http:error-response>
+		</http:listener>
+		<flow-ref doc:name="RandomModificatorsSubFlow" doc:id="db4e420c-73a2-4bd7-9e4f-82ffc55b33f6" name="RandomModificatorsSubFlow" />
+		<flow-ref doc:name="checkBasicAuth" doc:id="c461ce25-877c-4403-9c8c-99732426a0bc" name="checkBasicAuth"/>
+		<logger level="INFO" doc:name="Logger" doc:id="02f69560-12b9-4a98-bdea-993c45de659b" />
+		<choice doc:name="Choice" doc:id="14d5c12e-0db7-427f-a7c2-bf203b7e3977" >
+			<when expression="#[isEmpty(attributes.queryParams.pesel)]">
+				<set-payload value='#[%dw 2.0
+output application/json
+---
+{
+	"error": "No Parameter [pesel]"
+}]' doc:name="No Parameter Payload" doc:id="dd90e2ba-62f1-445e-9dbe-2db2992f0ddd" />
+				<set-variable value="#[400]" doc:name="Http Status 400" doc:id="32549a21-1cc7-4f7f-9ae5-e2c1cf2e6ee4" variableName="httpStatus"/>
+			</when>
+			<when expression="#[attributes.queryParams.pesel ~= 85062606702]">
+				<set-payload value='#[%dw 2.0
+output application/json
+---
+{
+	"id": 126,
+	"name": "Alicja",
+	"surname": "Kowalska",
+	"pesel": 85062606702
+}]' doc:name="Set Person Payload" doc:id="8af52db0-b02a-441a-9efe-db454c74e7b4" />
+			</when>
+			<otherwise>
+				<set-payload value='#[%dw 2.0
+output application/json
+---
+{
+	"error": "Not Found"
+}]' doc:name="Set Not Found Payload" doc:id="f21cfe8d-b171-40d7-8986-b6b138cad751" />
+				<set-variable value="#[404]" doc:name="Set httpStatus 404" doc:id="95b9f207-a8f2-4951-afb0-9259b72ad3ec" variableName="httpStatus"/>
+			</otherwise>
+		</choice>
+	</flow>
+	<flow name="PeoplePostFlow" doc:id="44722769-9609-463f-8fda-757763232eae" >
+		<http:listener doc:name="POST /person" doc:id="55c3f8b2-b81a-4cb7-bc17-33a857a50138" config-ref="HTTP_People_Listener_config" path="/person" allowedMethods="POST">
+			<http:response statusCode="#[vars.httpStatus]" />
+			<http:error-response statusCode="#[vars.httpStatus]" />
+		</http:listener>
+		<flow-ref doc:name="RandomModificatorsSubFlow" doc:id="ad4653a2-6e15-42b2-949c-c4445a2b33f4" name="RandomModificatorsSubFlow" />
+		<flow-ref doc:name="checkBasicAuth" doc:id="567132dd-3d68-46b1-a715-4aa150205f96" name="checkBasicAuth"/>
+		<set-payload value='#[%dw 2.0
+output application/json
+---
+{
+	"id": 627,
+	"name": payload.name,
+	"surname": payload.surname,
+	"pesel": payload.pesel
+}]' doc:name="Set New Person Payload" doc:id="f6f0e334-0b3a-4ba1-8a8b-b7692de44774" />
+	</flow>
+		<sub-flow name="checkBasicAuth" doc:id="c5f03afb-d47d-4f83-be04-5f812e6cceea" >
+		<choice doc:name="Choice" doc:id="d7ae8781-d41b-4584-be8a-70c149f03769" >
+			<when expression='#[isEmpty(attributes.headers.authorization) or attributes.headers.authorization != "Basic dXNlcm5hbWU6cGFzc3dvcmQ="]'>
+				<set-variable value="401" doc:name="Set httpStatus 401" doc:id="0f34d43b-022d-43b1-a7cc-bdeeb28215e4" variableName="httpStatus" />
+				<raise-error doc:name="Raise Unauthorized" doc:id="a490c220-3977-4ef4-8a80-590a9bb25104" type="APP:UNAUTHORIZED" description="Unauthorized"/>
+			
+</when>
+			<otherwise >
+				<logger level="DEBUG" doc:name="Log OK" doc:id="4131f285-03d1-4274-82a9-9239c48fe1e8" message="Basic Auth OK"/>
+			</otherwise>
+		</choice>
+	</sub-flow>
+</mule>

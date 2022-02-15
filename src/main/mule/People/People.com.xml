@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:email="http://www.mulesoft.org/schema/mule/email"
+	xmlns:json="http://www.mulesoft.org/schema/mule/json"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
+http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-current.xsd 
+http://www.mulesoft.org/schema/mule/json http://www.mulesoft.org/schema/mule/json/current/mule-json.xsd 
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/email http://www.mulesoft.org/schema/mule/email/current/mule-email.xsd">
+
+	<sub-flow name="PeopleGetPerson" >
+	<logger level="INFO" doc:name="Log action" message='#[%dw 2.0
+output application/json
+---
+{
+	"Method" : "GET",
+	"Action" : "Get Person By Pesel"
+}]'/>
+		<until-successful maxRetries="5" doc:name="Until Successful" millisBetweenRetries="1000">
+			<try doc:name="Try">
+				<http:request method="GET" doc:name="Request People.com" config-ref="HTTP_People_Request_configuration" path="/person">
+				<http:headers><![CDATA[#[output application/java
+---
+{
+	Authorization : "Basic dXNlcm5hbWU6cGFzc3dvcmQ="
+}]]]></http:headers>
+				<http:query-params><![CDATA[#[output application/java
+---
+{
+	pesel : vars.pesel
+}]]]></http:query-params>
+			
+</http:request>
+				<error-handler>
+				<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" type="HTTP:NOT_FOUND">
+					<flow-ref doc:name="Bike Riders Get Person Data" name="BikeRidersGetPersonData" />
+				</on-error-continue>
+			</error-handler>
+		</try>
+			<set-variable value="#[payload]" doc:name="Set Response Variable" variableName="response" />
+			
+		</until-successful>
+		<try doc:name="Try" >
+			<json:validate-schema doc:name="Validate Person By Pesel" schema="schema/GetPersonByPeselSchema.json" />
+			<error-handler >
+				<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" type="JSON:SCHEMA_NOT_HONOURED">
+					<flow-ref doc:name="Send Email" name="SendEmail"/>
+				</on-error-propagate>
+			</error-handler>
+		</try>
+		<flow-ref doc:name="Log Data" name="LogData" />
+		<set-payload value="#[vars.response]" doc:name="Set Response" />
+	
+</sub-flow>
+	
+	<sub-flow name="PeopleCreatePerson" >
+	<logger level="INFO" doc:name="Log action" message='#[%dw 2.0
+output application/json
+---
+{
+	"Method" : "POST",
+	"Action" : "Create Person"
+}]'/>
+		<until-successful maxRetries="5" doc:name="Until Successful" millisBetweenRetries="1000">
+			<http:request method="POST" doc:name="Request People.com" config-ref="HTTP_People_Request_configuration" path="/person">
+				<http:body><![CDATA[#[%dw 2.0
+output application/json
+---
+{
+	"name": payload.name,
+	"surname": payload.surname,
+	"pesel": payload.pesel
+}]]]></http:body>
+				<http:headers><![CDATA[#[output application/java
+---
+{
+	Authorization : "Basic dXNlcm5hbWU6cGFzc3dvcmQ="
+}]]]></http:headers>
+			</http:request>
+			<set-variable value="#[payload]" doc:name="Set Response Variable" variableName="response" />
+
+		</until-successful>
+		<try doc:name="Try" >
+			<json:validate-schema doc:name="Validate Person By Pesel" schema="schema/GetPersonByPeselSchema.json" />
+			<error-handler>
+				<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" type="JSON:SCHEMA_NOT_HONOURED">
+						<flow-ref doc:name="Send Email" name="SendEmail" />
+
+					
+					</on-error-propagate>
+			</error-handler>
+		</try>
+		<flow-ref doc:name="Log Data" name="LogData" />
+		<set-payload value="#[vars.response]" doc:name="Set Response" />
+		<flow-ref doc:name="Tournament Auth" name="TournamentAuth"/>
+	
+</sub-flow>
+	<sub-flow name="SendEmail" >
+		<email:send doc:name="Send Email People.com" config-ref="Email_SMTP" fromAddress='#["esb.message@gmail.com"]' subject="Invalid Data Response">
+							<email:to-addresses>
+								<email:to-address value="serwis.people@gmail.com" />
+							</email:to-addresses>
+							<email:body contentType="text/plain">
+								<email:content><![CDATA[#["Invalid response data
+I was expecting:
+{
+	id: Integer,
+	name: String,
+	surname: String,
+	pesel: Integer
+}
+"]]]></email:content>
+							</email:body>
+						</email:send>
+		<email:send doc:name="Send Email BikeRiders.com" config-ref="Email_SMTP" fromAddress='#["esb.message@gmail.com"]' subject="Invalid Data Response">
+			<email:to-addresses >
+				<email:to-address value="serwis.bike.riders@gmail.com" />
+			</email:to-addresses>
+			<email:body contentType="text/plain" >
+				<email:content ><![CDATA[#["The request cannot be performed because People.com returns incorrect data"]]]></email:content>
+			</email:body>
+		</email:send>
+	</sub-flow>
+	<sub-flow name="Authorization" >
+		<logger level="INFO" doc:name="Logger" message='#[%dw 2.0
+output application/json
+---
+{
+	"test" : "$test.people.credentials"
+}]' />
+		<set-variable value='#[%dw 2.0
+import * from dw::core::Binaries
+output text/plain
+---
+toBase64(p("test.people.credentials") as Binary)]' doc:name="Set Variable" variableName="credentials"/>
+	</sub-flow>
+	
+	
+	
+	
+</mule>

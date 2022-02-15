@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:email="http://www.mulesoft.org/schema/mule/email"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/email http://www.mulesoft.org/schema/mule/email/current/mule-email.xsd 
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd">
+
+	<http:listener-config name="HTTP_Listener_config"
+		doc:name="HTTP Listener config">
+		<http:listener-connection host="0.0.0.0"
+			port="8080" />
+	</http:listener-config>
+	<http:request-config
+		name="HTTP_People_Request_configuration"
+		doc:name="HTTP Request configuration">
+		<http:request-connection
+			host="${test.people.host}" port="${test.people.port}" />
+	</http:request-config>
+	<http:request-config
+		name="HTTP_BikeRiders_Request_configuration"
+		doc:name="HTTP Request configuration">
+		<http:request-connection
+			host="${test.bikeriders.host}" port="${test.bikeriders.port}" />
+	</http:request-config>
+	<email:smtp-config name="Email_SMTP"
+		doc:name="Email SMTP">
+		<email:smtp-connection host="127.0.0.1"
+			port="1025" />
+	</email:smtp-config>
+	<configuration-properties
+		doc:name="Configuration properties"
+		doc:id="f999469c-ceb8-4546-a47e-0492577f5a49"
+		file="application.properties" />
+	<http:request-config
+		name="HTTP_Tournament_Request_configuration"
+		doc:name="HTTP Request configuration"
+		doc:id="2581dd35-5090-480a-9e65-a1e4f6df1562">
+		<http:request-connection
+			host="${test.tournaments.host}" port="${test.tournaments.port}" />
+	</http:request-config>
+</mule>
